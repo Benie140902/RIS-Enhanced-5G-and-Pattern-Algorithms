@@ -1,0 +1,70 @@
+# Enable Proportionality fair algorithm in srsRAN and use the fairness coefficient of lesser than 1 for communication of short distances to experiment and differentiate Good and Bad patterns
+
+# This example configuration outlines how to configure the srsRAN Project gNB to create a single TDD cell
+# transmitting in band 78, with 20 MHz bandwidth and 30 kHz sub-carrier-spacing. A USRP B200 is configured
+# as the RF frontend using split 8. Note in this example an external clock source is not used, so the sync
+# is not defined and the default is used.
+
+cu_cp:
+  amf:
+    addr: 127.0.0.5
+    port: 38412
+    bind_addr: 127.0.0.1
+    supported_tracking_areas:
+      - tac: 7
+        plmn_list:
+          - plmn: "00101"
+            tai_slice_support_list:
+              - sst: 1
+
+ru_sdr:
+  device_driver: uhd
+  device_args: type=b200,num_recv_frames=64,num_send_frames=64
+  srate: 23.04
+  otw_format: sc12
+  tx_gain: 55
+  rx_gain: 55
+
+cell_cfg:
+  sched_expert_cfg:
+    policy_sched_cfg:
+      pf_sched:
+        pf_sched_fairness_coeff: 0.05
+  dl_arfcn: 632628
+  band: 78
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  plmn: "00101"
+  tac: 7
+  pci: 1                     
+  pucch:
+    #p0_nominal: -12
+  pusch:
+    min_ue_mcs: 23
+    max_ue_mcs: 28
+    #target_sinr: 30                         
+    #ref_path_loss: 80
+  pdsch:
+    min_ue_mcs: 23
+    max_ue_mcs: 28                        
+  ssb:
+    ssb_block_power_dbm: -10
+
+log:
+  filename: /tmp/gnb.log
+  all_level: warning
+  phy_level: debug
+  #phy_rx_symbols_filename: /tmp/iq.bin
+  phy_rx_symbols_port: 0 
+  phy_rx_symbols_prach: true
+pcap:
+  mac_enable: false
+  mac_filename: /tmp/gnb_mac.pcap
+  ngap_enable: false
+  ngap_filename: /tmp/gnb_ngap.pcap
+metrics:
+  autostart_stdout_metrics: 0
+  addr: 127.0.0.1
+  port: 55555
+  enable_json_metrics: 1     # use this exact name
+  
