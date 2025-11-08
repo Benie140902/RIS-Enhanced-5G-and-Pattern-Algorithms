@@ -1,0 +1,186 @@
+import sys
+import serial
+import pandas as pd
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QPushButton, QLabel, QMessageBox
+)
+
+# === Configuration ===
+PORT1 = '/dev/ttyUSB4'  # RIS1 (bottom-left)
+PORT2 = '/dev/ttyUSB3'  # RIS2 (bottom-right)
+PORT3 = '/dev/ttyUSB2'  # RIS3 (top-right)
+PORT4 = '/dev/ttyUSB0'  # RIS4 (top-left)
+BAUD_RATE = 115200
+EXCEL_FILE = "pattern.xlsx"
+ROWS = 16
+COLS = 32
+
+
+def hex_to_matrix_16x32(full_hex):
+    """
+    Convert '!0X' + 128 hex chars into a 16x32 matrix (0/1).
+    Each 4 hex chars = 16 bits = one column.
+    """
+    hex_str = full_hex[3:] if full_hex.startswith("!0X") else full_hex
+    if len(hex_str) != 128:
+        raise ValueError(f"Expected 128 hex chars (512 bits), got {len(hex_str)}")
+
+    matrix = [[0]*COLS for _ in range(ROWS)]
+    for col in range(COLS):
+        chunk = hex_str[col*4:(col+1)*4]
+        bits = bin(int(chunk, 16))[2:].zfill(16)
+        for row in range(ROWS):
+            matrix[row][col] = int(bits[row])
+    return matrix
+
+
+class RISPatternGrid(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("RIS Pattern Sender — 16x32 Grid")
+        self.patterns = []
+        self.pattern_index = 0
+
+        # === Layout ===
+        self.layout = QVBoxLayout(self)
+        self.label_status = QLabel("Loading patterns...")
+        self.label_index = QLabel("Index: 0/0")
+        self.label_pattern = QLabel("Pattern: --")
+        self.layout.addWidget(self.label_status)
+        self.layout.addWidget(self.label_index)
+        self.layout.addWidget(self.label_pattern)
+
+        # === 16x32 Grid ===
+        self.grid_layout = QGridLayout()
+        self.cells = []
+        cell_size = 18
+        for r in range(ROWS):
+            row_cells = []
+            for c in range(COLS):
+                btn = QPushButton("")
+                btn.setFixedSize(cell_size, cell_size)
+                btn.setEnabled(False)
+                btn.setStyleSheet("background-color: white; border: 1px solid #ddd;")
+                self.grid_layout.addWidget(btn, r, c)
+                row_cells.append(btn)
+            self.cells.append(row_cells)
+        self.layout.addLayout(self.grid_layout)
+
+        # === Control Buttons ===
+        controls = QHBoxLayout()
+        self.btn_prev = QPushButton("Previous")
+        self.btn_next = QPushButton("Next")
+        controls.addWidget(self.btn_prev)
+        controls.addWidget(self.btn_next)
+        self.layout.addLayout(controls)
+
+        # Connect button actions
+        self.btn_prev.clicked.connect(self.prev_pattern)
+        self.btn_next.clicked.connect(self.next_pattern)
+
+        # Load patterns
+        self.load_patterns()
+
+        # Open serial ports
+        self.serial_ports = self.open_ports()
+
+        # Show the first pattern initially
+        self.update_display()
+
+    def load_patterns(self):
+        try:
+            df = pd.read_excel(EXCEL_FILE)
+            self.patterns = df["Pattern"].dropna().astype(str).tolist()
+            self.label_status.setText(f"Loaded {len(self.patterns)} patterns from {EXCEL_FILE}")
+            self.update_index_label()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load Excel: {e}")
+            self.patterns = []
+            self.label_status.setText("No patterns loaded.")
+            self.update_index_label()
+
+    def open_ports(self):
+        ports = []
+        for port in [PORT1, PORT2, PORT3, PORT4]:
+            try:
+                ser = serial.Serial(port, BAUD_RATE, timeout=2)
+                print(f"Opened {port}")
+                ports.append(ser)
+            except Exception as e:
+                print(f"Failed to open {port}: {e}")
+        return ports
+
+    def send_pattern(self, pattern):
+        """Send pattern string to all 4 RIS boards."""
+        hex_payload = pattern[3:]
+        if len(hex_payload) != 128:
+            raise ValueError("Malformed pattern: Expected 128 hex chars")
+
+        ris1_hex = hex_payload[:64]   # bottom-left / top-left
+        ris2_hex = hex_payload[64:]   # bottom-right / top-right
+
+        if len(self.serial_ports) >= 4:
+            self.serial_ports[0].write(("!0X" + ris1_hex + '\n').encode())
+            self.serial_ports[1].write(("!0X" + ris2_hex + '\n').encode())
+            self.serial_ports[2].write(("!0X" + ris2_hex + '\n').encode())
+            self.serial_ports[3].write(("!0X" + ris1_hex + '\n').encode())
+
+    def update_display(self):
+        """Update both the visual grid and info labels."""
+        if not self.patterns:
+            return
+
+        pattern = self.patterns[self.pattern_index]
+        try:
+            matrix = hex_to_matrix_16x32(pattern)
+            self.update_grid(matrix)
+            self.send_pattern(pattern)
+            self.label_pattern.setText(f"Pattern: {pattern[:24]}...")
+            self.label_status.setText("Pattern sent successfully.")
+        except Exception as e:
+            self.label_status.setText(f"Error processing pattern {self.pattern_index}: {e}")
+            print("Display error:", e)
+
+        self.update_index_label()
+
+    def update_grid(self, matrix):
+        """Update the 16x32 matrix visualization."""
+        for r in range(ROWS):
+            for c in range(COLS):
+                color = "green" if matrix[r][c] else "white"
+                self.cells[r][c].setStyleSheet(f"background-color: {color}; border: 1px solid #ddd;")
+
+    def next_pattern(self):
+        if self.pattern_index < len(self.patterns) - 1:
+            self.pattern_index += 1
+            self.update_display()
+        else:
+            self.label_status.setText("Already at the last pattern.")
+
+    def prev_pattern(self):
+        if self.pattern_index > 0:
+            self.pattern_index -= 1
+            self.update_display()
+        else:
+            self.label_status.setText("Already at the first pattern.")
+
+    def update_index_label(self):
+        total = len(self.patterns)
+        self.label_index.setText(f"Index: {self.pattern_index + 1}/{total}")
+
+    def closeEvent(self, event):
+        for ser in self.serial_ports:
+            try:
+                ser.close()
+            except:
+                pass
+        event.accept()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    win = RISPatternGrid()
+    win.resize(800, 500)
+    win.show()
+    sys.exit(app.exec_())
