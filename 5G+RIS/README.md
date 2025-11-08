@@ -38,22 +38,6 @@ Optionally logs all data points into an Excel sheet (cqi_log_pos.xlsx).
 
 A configuration file (text or parameter-based) that stores gNB or RIS setup parameters — such as RIS serial ports, gNB IP/port details, and power levels — used by both scripts to ensure synchronization between RIS hardware and the network side.
 
-System Flow
-+-------------------+       UDP: CQI data       +-------------------+
-|    gNB / UE       |  ---------------------->  |   Python Scripts   |
-|  (CQI Generator)  |                          |  (cqi_pattern.py &  |
-|                   |                          |  real_cqi_data.py)  |
-+-------------------+                          +-------------------+
-          ^                                                 |
-          |     Serial: RIS Control Commands                |
-          +-------------------------------------------------+
-                              |
-                              v
-                      +-----------------+
-                      |     RIS Board   |
-                      | (via USB/UART)  |
-                      +-----------------+
-
 Requirements
 Python Environment
 
