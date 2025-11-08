@@ -5,7 +5,7 @@ It automates the transmission of reflection patterns to multiple RIS blocks and 
 
 ---
 
-## 🧩 System Overview
+## System Overview
 
 The setup consists of:
 - **4 RIS panels**, each 16×16 elements, controlled through serial ports of RIS controller.
@@ -19,7 +19,7 @@ The setup consists of:
 
 ---
 
-## 🛠️ Features
+## Features
 
 - Automated sequential pattern transmission to all 4 RIS panels.
 - Real-time power measurement using the USRP B210.
@@ -32,7 +32,7 @@ The setup consists of:
 
 ---
 
-## ⚙️ Hardware Requirements
+## Hardware Requirements
 
 | Component | Description |
 |------------|--------------|
@@ -43,7 +43,7 @@ The setup consists of:
 
 ---
 
-## 💻 Software Requirements
+##  Software Requirements
 
 | Package | Version / Notes |
 |----------|------------------|
