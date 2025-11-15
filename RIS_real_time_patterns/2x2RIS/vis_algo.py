@@ -9,10 +9,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 
-# ======================================================
-# === Algorithm (Same as your final 4-RIS generation) ===
-# ======================================================
-
 def clean_hex(s):
     s = str(s).strip().upper()
     if s.startswith("!"):
@@ -25,7 +21,8 @@ def clean_hex(s):
 def generate_ports_numpy(A_input):
     A = np.array(A_input, dtype=int)
     original_size = len(A)
-    A_expanded = np.concatenate([A, A + 1])
+
+    A_expanded = np.array([], dtype=int)
     B = []
 
     for i in range(original_size):
@@ -39,9 +36,13 @@ def generate_ports_numpy(A_input):
 
     ris_port2 = []
     for x in B:
-        val = x / 2
-        mapped = math.ceil(val)
+        # Simplified bug fix: val = x - 16
+        val = x - 16
+        mapped = int(val)
+
+        # clamp
         mapped = max(0, min(15, mapped))
+
         ris_port2.append(mapped)
 
     if ris_port2:
