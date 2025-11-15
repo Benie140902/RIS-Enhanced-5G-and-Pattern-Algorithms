@@ -23,18 +23,11 @@ INPUT_EXCEL = "input_ris_patterns.xlsx"  # your input excel with 'Pattern' colum
 DELAY_BETWEEN_PATTERNS = 3000  # ms
 
 
-# -----------------------------
-# Port-generation algorithm
-# -----------------------------
 def generate_ports_numpy(A_input):
-    """
-    Implements the algorithm you described.
-    Input: A_input = list/array of indices (0..15)
-    Output: ris_port1 (np.array of indices), ris_port2 (np.array of indices)
-    """
     A = np.array(A_input, dtype=int)
     original_size = len(A)
-    A_expanded = np.concatenate([A, A + 1])
+
+    A_expanded = np.array([], dtype=int)
     B = []
 
     for i in range(original_size):
@@ -46,21 +39,17 @@ def generate_ports_numpy(A_input):
 
     ris_port1 = np.unique(A_expanded).astype(int)
 
-    # ris_port2 derived from B (may contain values >15)
     ris_port2 = []
     for x in B:
-        # divide by 2, if .5 -> ceil to next integer
-        val = x / 2.0
-        if val.is_integer():
-            mapped = int(val)
-        else:
-            mapped = int(math.ceil(val))
-        # clamp to 0..15
-        if mapped < 0:
-            mapped = 0
-        if mapped > 15:
-            mapped = 15
+        # Simplified bug fix: val = x - 16
+        val = x - 16
+        mapped = int(val)
+
+        # clamp
+        mapped = max(0, min(15, mapped))
+
         ris_port2.append(mapped)
+
     if ris_port2:
         ris_port2 = np.unique(np.array(ris_port2, dtype=int))
     else:
@@ -68,10 +57,6 @@ def generate_ports_numpy(A_input):
 
     return ris_port1, ris_port2
 
-
-# -----------------------------
-# Helpers: hex parsing and expansion
-# -----------------------------
 def clean_pattern_string(s: str):
     s = str(s).strip().upper()
     if s.startswith("!"):
